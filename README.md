@@ -1,5 +1,7 @@
 # meican-mcp
 
+[![MCP Badge](https://lobehub.com/badge/mcp/cxorz-meican-mcp)](https://lobehub.com/mcp/cxorz-meican-mcp)
+
 美餐（Meican）MCP Server。支持查询餐次、餐厅、菜单、订单，以及下单和取消订单。
 
 ## 可用工具
