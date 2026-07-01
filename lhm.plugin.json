@@ -1,0 +1,142 @@
+{
+  "identifier": "cxorz-meican-mcp",
+  "name": "Meican MCP",
+  "version": "0.2.0",
+  "description": "Open-source MCP server for Meican (美餐) meal-ordering APIs — list meal tabs, restaurants, menus, orders, and place or cancel orders.",
+  "author": "cxOrz",
+  "authorUrl": "https://github.com/cxOrz",
+  "homepage": "https://github.com/cxOrz/meican-mcp",
+  "category": "productivity",
+  "tags": ["meican", "meal-ordering", "food", "chinese"],
+  "tools": [
+    {
+      "name": "meican_whoami",
+      "description": "Look up the current user's organization info and all delivery addresses on Meican.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "meican_list_meal_tabs",
+      "description": "List meal sessions (餐次, e.g. 午餐, 晚餐) available for a given date.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "meican_list_restaurants",
+      "description": "List restaurants serving in one meal session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab_unique_id": { "type": "string" },
+          "target_time": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        },
+        "required": ["tab_unique_id", "target_time"]
+      }
+    },
+    {
+      "name": "meican_show_menu",
+      "description": "Show one restaurant's full menu for a meal session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab_unique_id": { "type": "string" },
+          "restaurant_unique_id": { "type": "string" },
+          "target_time": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        },
+        "required": ["tab_unique_id", "restaurant_unique_id", "target_time"]
+      }
+    },
+    {
+      "name": "meican_list_orders",
+      "description": "List the current user's existing Meican orders for a date plus any unpaid items.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "meican_show_order",
+      "description": "Show full status of one order by its uniqueId, including pickup location and pay status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "order_unique_id": { "type": "string" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        },
+        "required": ["order_unique_id"]
+      }
+    },
+    {
+      "name": "meican_place_order",
+      "description": "Place a meal order. Destructive: may charge the user or consume a subsidy. Confirm with the user before calling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab_unique_id": { "type": "string" },
+          "target_time": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$" },
+          "dishes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dish_id": { "type": "integer", "exclusiveMinimum": 0 },
+                "count": { "type": "integer", "exclusiveMinimum": 0 },
+                "remark": { "type": "string" }
+              },
+              "required": ["dish_id"]
+            },
+            "minItems": 1
+          },
+          "address_unique_id": { "type": "string" },
+          "address_remark": { "type": "string" },
+          "dry_run": { "type": "boolean" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        },
+        "required": ["tab_unique_id", "target_time", "dishes", "address_unique_id"]
+      }
+    },
+    {
+      "name": "meican_cancel_order",
+      "description": "Cancel a meal order. Destructive: removes the order. Confirm with the user before calling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "order_unique_id": { "type": "string" },
+          "type": { "type": "string", "default": "CORP_ORDER" },
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "namespace": { "type": "string" }
+        },
+        "required": ["order_unique_id"]
+      }
+    }
+  ]
+}
