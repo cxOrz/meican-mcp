@@ -1,0 +1,22 @@
+services:
+  meican-mcp:
+    image: meican-mcp:${IMAGE_TAG:-0.1.0}
+    build: .
+    pull_policy: never
+    container_name: meican-mcp
+    restart: unless-stopped
+    # Bind only to localhost on the host by default. Set HOST_BIND=0.0.0.0
+    # in your .env to expose directly (see README "Deployment without a reverse proxy").
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:${HOST_PORT:-3000}:3000"
+    environment:
+      # REQUIRED — generate with: openssl rand -hex 32
+      MCP_API_KEY: ${MCP_API_KEY:?MCP_API_KEY must be set}
+      # Inside the container we bind to 0.0.0.0 so docker port mapping works.
+      BIND_HOST: 0.0.0.0
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MEICAN_CLIENT_ID: ${MEICAN_CLIENT_ID:?MEICAN_CLIENT_ID must be set}
+      MEICAN_CLIENT_SECRET: ${MEICAN_CLIENT_SECRET:?MEICAN_CLIENT_SECRET must be set}
+      MEICAN_NAMESPACE: ${MEICAN_NAMESPACE:-}
+    # No volumes: server is stateless.

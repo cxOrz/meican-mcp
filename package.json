@@ -1,0 +1,46 @@
+{
+  "name": "meican-mcp",
+  "version": "0.1.0",
+  "description": "Open-source MCP server for Meican (美餐) meal-ordering APIs",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/cli.js",
+  "bin": {
+    "meican-mcp": "dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/cli.js",
+    "./http": "./dist/http-server.js",
+    "./stdio": "./dist/stdio-server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    ".env.example"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "start": "node --env-file-if-exists=.env dist/cli.js http",
+    "start:stdio": "node --env-file-if-exists=.env dist/cli.js stdio",
+    "dev": "tsx watch --env-file-if-exists=.env src/cli.ts http",
+    "dev:stdio": "tsx --env-file-if-exists=.env src/cli.ts stdio",
+    "prepack": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "inspect": "npx @modelcontextprotocol/inspector"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^4.21.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
