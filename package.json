@@ -1,6 +1,6 @@
 {
   "name": "meican-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Open-source MCP server for Meican (美餐) meal-ordering APIs",
   "license": "MIT",
   "type": "module",
