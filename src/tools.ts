@@ -1,6 +1,13 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MeicanClient, MeicanError } from "./meican-api.js";
+import { MeicanClient, MeicanError, type TokenRotation } from "./meican-api.js";
+import {
+  getConfigPath,
+  persistTokens,
+  readLocalConfig,
+  resolveSetting,
+  type MeicanConfig,
+} from "./config.js";
 import {
   summarizeCalendar,
   summarizeRestaurants,
@@ -15,8 +22,8 @@ type ToolArgs = Record<string, any>;
 type ToolPayload = Record<string, any>;
 type ToolHandler = (client: MeicanClient, args: ToolArgs) => Promise<unknown> | unknown;
 
-// Tokens can be supplied per call, or via environment variables for local
-// single-user MCP clients.
+// Explicit tool arguments are user-scoped and take precedence. Local
+// single-user calls use config-file values before environment variables.
 const tokensShape = {
   access_token: z
     .string()
@@ -24,7 +31,7 @@ const tokensShape = {
     .optional()
     .describe(
       "Optional Meican access token (cookie 'sat' on www.meican.com). " +
-        "If omitted, the server reads MEICAN_ACCESS_TOKEN from its environment.",
+        "If omitted, the server reads local config, then MEICAN_ACCESS_TOKEN.",
     ),
   refresh_token: z
     .string()
@@ -32,9 +39,9 @@ const tokensShape = {
     .optional()
     .describe(
       "Optional Meican refresh token (cookie 'srt'). If omitted, the server " +
-        "reads MEICAN_REFRESH_TOKEN from its environment. On HTTP 401 the " +
-        "server refreshes once and returns the rotated pair in `_rotation`; " +
-        "persist it before the next call.",
+        "reads local config, then MEICAN_REFRESH_TOKEN. On HTTP 401 the " +
+        "server refreshes once. In local mode the rotated pair is persisted " +
+        "automatically; callers using explicit tokens must persist `_rotation`.",
     ),
   namespace: z
     .string()
@@ -57,15 +64,31 @@ function asContent(payload: ToolPayload) {
 
 function makeHandler(fn: ToolHandler) {
   return async (args: ToolArgs) => {
-    const client = new MeicanClient({
-      accessToken: resolveCredential(args.access_token, "access_token", "MEICAN_ACCESS_TOKEN"),
-      refreshToken: resolveCredential(args.refresh_token, "refresh_token", "MEICAN_REFRESH_TOKEN"),
-      namespace: args.namespace,
-    });
+    let client: MeicanClient | undefined;
+    let persistRotation = false;
+    let configPath: string | undefined;
+    let persistenceWarning: string | undefined;
     try {
+      configPath = getConfigPath();
+      const localConfig = await readLocalConfig(configPath);
+      const hasExplicitTokens = hasValue(args.access_token) || hasValue(args.refresh_token);
+      persistRotation = !hasExplicitTokens;
+      const onTokenRotation = persistRotation
+        ? async (rotation: TokenRotation) => {
+            try {
+              await persistTokens(rotation.access_token, rotation.refresh_token, configPath);
+            } catch (error) {
+              persistenceWarning = `token refreshed but could not update ${configPath}: ${
+                error instanceof Error ? error.message : String(error)
+              }`;
+            }
+          }
+        : undefined;
+      client = createClient(args, localConfig, onTokenRotation);
       const data = await fn(client, args);
       const out: ToolPayload = { ok: true, data };
       if (client.rotation) out._rotation = client.rotation;
+      if (persistenceWarning) out._persistence_warning = persistenceWarning;
       return asContent(out);
     } catch (err) {
       const result: ToolPayload = {
@@ -78,17 +101,53 @@ function makeHandler(fn: ToolHandler) {
           kind: err instanceof Error ? err.name : "Error",
         },
       };
-      if (client.rotation) result._rotation = client.rotation;
+      if (client?.rotation) result._rotation = client.rotation;
+      if (persistenceWarning) result._persistence_warning = persistenceWarning;
       return asContent(result);
     }
   };
 }
 
-function resolveCredential(value: unknown, argumentName: string, envName: string): string {
-  if (typeof value === "string" && value.trim()) return value.trim();
-  const envValue = process.env[envName];
-  if (envValue?.trim()) return envValue.trim();
-  throw new MeicanError(`missing ${argumentName}; provide tool argument or ${envName}`);
+function createClient(
+  args: ToolArgs,
+  local: MeicanConfig,
+  onTokenRotation?: (rotation: TokenRotation) => Promise<void> | void,
+): MeicanClient {
+  return new MeicanClient({
+    accessToken: requireSetting(
+      stringValue(args.access_token) || local.accessToken || process.env.MEICAN_ACCESS_TOKEN,
+      "access_token; provide a tool argument, local config accessToken, or MEICAN_ACCESS_TOKEN",
+    ),
+    refreshToken: requireSetting(
+      stringValue(args.refresh_token) || local.refreshToken || process.env.MEICAN_REFRESH_TOKEN,
+      "refresh_token; provide a tool argument, local config refreshToken, or MEICAN_REFRESH_TOKEN",
+    ),
+    namespace: stringValue(args.namespace) || resolveSetting(local.namespace, process.env.MEICAN_NAMESPACE),
+    clientId: requireSetting(
+      resolveSetting(local.clientId, process.env.MEICAN_CLIENT_ID),
+      "MEICAN client id; set local config clientId or MEICAN_CLIENT_ID",
+    ),
+    clientSecret: requireSetting(
+      resolveSetting(local.clientSecret, process.env.MEICAN_CLIENT_SECRET),
+      "MEICAN client secret; set local config clientSecret or MEICAN_CLIENT_SECRET",
+    ),
+    apiBaseUrl: resolveSetting(local.apiBaseUrl, process.env.MEICAN_API_BASE_URL),
+    onTokenRotation,
+  });
+}
+
+function requireSetting(value: string | undefined, description: string): string {
+  const normalized = value?.trim();
+  if (normalized) return normalized;
+  throw new MeicanError(`missing ${description}`);
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function hasValue(value: unknown): boolean {
+  return stringValue(value) !== undefined;
 }
 
 // ---- tool registrations ----

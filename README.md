@@ -29,7 +29,7 @@
 { "ok": false, "error": { "message": "...", "status": 400, "body": {}, "kind": "MeicanError" } }
 ```
 
-如果返回 `_rotation`，说明 token 已刷新，客户端应在下一次调用前保存新的 `access_token` 和 `refresh_token`。
+token 过期时会自动刷新并保存，无需手动更新环境变量。
 
 ## 快速使用
 
@@ -53,16 +53,39 @@
 
 `MEICAN_ACCESS_TOKEN` 对应美餐的 cookie `sat`，`MEICAN_REFRESH_TOKEN` 对应美餐的 cookie `srt`。
 
+## 本地配置
+
+推荐将登录信息放在本地配置文件中：
+
+- Linux/macOS：`~/.config/meican-mcp/config.json`
+- Windows：`%APPDATA%\meican-mcp\config.json`
+
+```json
+{
+  "clientId": "...",
+  "clientSecret": "...",
+  "accessToken": "...",
+  "refreshToken": "...",
+  "namespace": "..."
+}
+```
+
+`accessToken` 对应美餐 cookie `sat`，`refreshToken` 对应 cookie `srt`。token 过期后，
+server 会自动刷新并更新这个文件。
+
+本地配置优先于环境变量。需要修改配置文件位置时，可设置 `MEICAN_CONFIG_FILE`。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |
 |---|---:|---|
-| `MEICAN_CLIENT_ID` | 是 | 美餐的 OAuth client id，去 Web 端找，或抓包。 |
-| `MEICAN_CLIENT_SECRET` | 是 | 美餐的 OAuth client secret，去 Web 端找，或抓包。 |
-| `MEICAN_ACCESS_TOKEN` | 是 | 美餐 `sat` cookie。不填的话在调用时传 `access_token` 也可。 |
-| `MEICAN_REFRESH_TOKEN` | 是 | 美餐 `srt` cookie。不填的话在调用时传 `refresh_token` 也可。 |
+| `MEICAN_CLIENT_ID` | 否 | 美餐 OAuth client id；也可配置 `clientId`。两处至少提供一处。 |
+| `MEICAN_CLIENT_SECRET` | 否 | 美餐 OAuth client secret；也可配置 `clientSecret`。两处至少提供一处。 |
+| `MEICAN_ACCESS_TOKEN` | 否 | 美餐 `sat` cookie；也可配置 `accessToken` 或在调用时传入。 |
+| `MEICAN_REFRESH_TOKEN` | 否 | 美餐 `srt` cookie；也可配置 `refreshToken` 或在调用时传入。 |
 | `MEICAN_NAMESPACE` | 否 | 默认组织/站点 namespace。也可以在工具调用参数里传。 |
 | `MEICAN_API_BASE_URL` | 否 | 默认 `https://www.meican.com/forward/api`。 |
+| `MEICAN_CONFIG_FILE` | 否 | 覆盖本地配置文件的完整路径。 |
 
 HTTP 模式相关：
 
@@ -103,4 +126,3 @@ HTTP MCP 配置示例：
   }
 }
 ```
-

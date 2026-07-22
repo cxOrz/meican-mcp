@@ -9,9 +9,9 @@ const SERVER_INSTRUCTIONS = `
 Use this server to help a user inspect and manage Meican meal orders.
 
 Credential model:
-- For local single-user clients, access and refresh tokens may come from MEICAN_ACCESS_TOKEN and MEICAN_REFRESH_TOKEN.
+- For local single-user clients, settings come from local config first, then environment variables. Rotated tokens are persisted automatically.
 - For multi-user agents, pass access_token and refresh_token in each tool call.
-- If a tool response includes _rotation, persist the new access_token and refresh_token before the next call.
+- Explicit per-call tokens are never written to local config. If such a call includes _rotation, persist the new pair before the next call.
 
 Recommended workflow:
 - To answer what meals are available for a day, call meican_list_meal_tabs with date, then meican_list_restaurants for a chosen tab, then meican_show_menu for a chosen restaurant.

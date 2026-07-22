@@ -1,13 +1,7 @@
-// Meican HTTP client. Each tool invocation constructs a fresh client with
-// user-scoped tokens, so the MCP server keeps no user state on disk.
+// Meican HTTP client. Configuration resolution and token persistence are kept
+// outside this class so it can also be used with per-request credentials.
 
-const BASE = process.env.MEICAN_API_BASE_URL || "https://www.meican.com/forward/api";
-
-const DEFAULTS = {
-  clientId: process.env.MEICAN_CLIENT_ID,
-  clientSecret: process.env.MEICAN_CLIENT_SECRET,
-  namespace: process.env.MEICAN_NAMESPACE,
-};
+const DEFAULT_BASE_URL = "https://www.meican.com/forward/api";
 
 type QueryValue = string | number | boolean | null | undefined;
 type RequestBody = URLSearchParams | Record<string, string | number | boolean> | string | null;
@@ -16,8 +10,10 @@ interface MeicanClientOptions {
   accessToken: string;
   refreshToken: string;
   namespace?: string;
-  clientId?: string;
-  clientSecret?: string;
+  clientId: string;
+  clientSecret: string;
+  apiBaseUrl?: string;
+  onTokenRotation?: (rotation: TokenRotation) => Promise<void> | void;
 }
 
 interface MeicanRequest {
@@ -37,7 +33,7 @@ interface OrdersAddInput {
   addressRemark?: string;
 }
 
-interface TokenRotation {
+export interface TokenRotation {
   access_token: string;
   refresh_token: string;
   rotated_at: string;
@@ -61,21 +57,25 @@ export class MeicanClient {
   namespace?: string;
   clientId: string;
   clientSecret: string;
+  apiBaseUrl: string;
+  onTokenRotation?: (rotation: TokenRotation) => Promise<void> | void;
   rotation: TokenRotation | null = null;
 
   constructor(opts: MeicanClientOptions) {
     if (!opts?.accessToken) throw new MeicanError("missing access_token");
     if (!opts?.refreshToken) throw new MeicanError("missing refresh_token");
-    const clientId = opts.clientId || DEFAULTS.clientId;
-    const clientSecret = opts.clientSecret || DEFAULTS.clientSecret;
+    const clientId = opts.clientId;
+    const clientSecret = opts.clientSecret;
     if (!clientId) throw new MeicanError("missing MEICAN_CLIENT_ID");
     if (!clientSecret) throw new MeicanError("missing MEICAN_CLIENT_SECRET");
 
     this.accessToken = opts.accessToken;
     this.refreshToken = opts.refreshToken;
-    this.namespace = opts.namespace || DEFAULTS.namespace;
+    this.namespace = opts.namespace;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
+    this.apiBaseUrl = (opts.apiBaseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
+    this.onTokenRotation = opts.onTokenRotation;
   }
 
   private requireNamespace(): string {
@@ -107,7 +107,7 @@ export class MeicanClient {
   }
 
   async refresh() {
-    const url = this.withClientQuery(`${BASE}/v2.1/oauth/token`);
+    const url = this.withClientQuery(`${this.apiBaseUrl}/v2.1/oauth/token`);
     const headers = this.commonHeaders();
     headers["content-type"] = "application/x-www-form-urlencoded";
     const body = new URLSearchParams({
@@ -135,12 +135,13 @@ export class MeicanClient {
       refresh_token: j.refresh_token,
       rotated_at: new Date().toISOString(),
     };
+    await this.onTokenRotation?.(this.rotation);
     return j;
   }
 
   async call<T = any>(req: MeicanRequest, _retried = false): Promise<T> {
-    let url = req.path.startsWith("http") ? req.path : `${BASE}${req.path}`;
-    if (url.startsWith(BASE)) url = this.withClientQuery(url);
+    let url = req.path.startsWith("http") ? req.path : `${this.apiBaseUrl}${req.path}`;
+    if (url.startsWith(this.apiBaseUrl)) url = this.withClientQuery(url);
     const u = new URL(url);
     for (const [k, v] of Object.entries(req.query || {})) {
       if (v !== undefined && v !== null) u.searchParams.set(k, String(v));

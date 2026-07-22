@@ -30,6 +30,7 @@
     "dev": "tsx watch --env-file-if-exists=.env src/cli.ts http",
     "dev:stdio": "tsx --env-file-if-exists=.env src/cli.ts stdio",
     "prepack": "npm run build",
+    "test": "npm run build && node --test test/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "inspect": "npx @modelcontextprotocol/inspector"
   },

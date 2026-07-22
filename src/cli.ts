@@ -16,8 +16,8 @@ Usage:
   meican-mcp --version    Print version
   meican-mcp --help       Print help
 
-HTTP mode requires MCP_API_KEY. Both modes require MEICAN_CLIENT_ID and
-MEICAN_CLIENT_SECRET before Meican tools can call the upstream API.`);
+HTTP mode requires MCP_API_KEY. Meican settings are read from local config
+(usually ~/.config/meican-mcp/config.json), then environment variables.`);
 }
 
 async function main(): Promise<void> {
